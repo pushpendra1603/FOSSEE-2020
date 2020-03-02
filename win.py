@@ -1,74 +1,123 @@
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QPushButton, QAction, QToolBar, QLabel, QLineEdit, QInputDialog
-from PyQt5.QtCore import Qt, QMimeData
-from PyQt5.QtGui import QPainter, QPixmap, QPen, QDrag, QColor
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QToolBar, QLabel, QInputDialog, QScrollArea, QFileDialog, QVBoxLayout
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPainter, QPen, QColor, QPalette, QPixmap
+from fpdf import FPDF
+from collections import namedtuple
 import math
 import random
 import sys
 
-def get_unique_id():
+
+
+
+
+Position = namedtuple("position", ['x', 'y'])
+
+
+def getUniqueId():
     i = 1
     while True:
         yield i
         i += 1
 
-circle_id = get_unique_id()
-line_id = get_unique_id()
+
+circleId = getUniqueId()
+lineId = getUniqueId()
+
+
+def midpoint(point1, point2):
+    return ((point1.x + point2.x) / 2, (point1.y + point2.y) / 2)
 
 
 class state:
     def __init__(self):
-        self.selected_circle = None
-        self.list_circles = set()
-        self.list_lines = {}
+        self.selectedCircle = None
+        self.circlesSet = set()
+        self.circlesLineMap = {}
 
-def midpoint(pos1, pos2):
-    return ((pos1.x()+pos2.x())/2, (pos1.y()+pos2.y())/2)
 
-class circ(QLabel):
+class Label(QLabel):
+    def __init__(self, *args, **kwargs):
+        super(Label, self).__init__(*args, **kwargs)
+        self.setAlignment(Qt.AlignCenter | Qt.AlignHCenter | Qt.AlignVCenter)
 
-    def __init__(self, parent, state):
-        super(circ, self).__init__(parent=parent)
-        self.resize(110, 110)
+    def center(self):
+        return Position(self.x() + self.width()/2, self.y() + self.height()/2)
+
+    def move(self, x, y):
+        super(Label, self).move(x - self.width()/2, y - self.height()/2)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.buttons() == Qt.LeftButton:
+            text, ok = QInputDialog.getText(self, 'change {} to'.format(self.text()), 'New name:')
+            if ok:
+                self.setText(text)
+
+
+class Circle(Label):
+    def __init__(self, canvas, state, diameter=100):
+        super(Circle, self).__init__(parent=canvas)
+        self.canvas = canvas
         self.state = state
-        self.parent = parent
-        self.x = random.randrange(0, 500)
-        self.y = random.randrange(25, 500)
+        self.diameter = diameter
+        self.thickness = 3
+        self.cen = self.center()
+        self.resize((self.diameter + 2*self.thickness), (self.diameter + 2*self.thickness))
+        self.move(random.randrange(0, self.canvas.width()) + self.width()/2, random.randrange(0, self.canvas.height()) + self.height()/2)
         self.color = QColor(*[random.randint(0, 255) for _ in range(3)])
-        self.move(self.x, self.y)
-        self.label = QLabel("Circle{}".format(next(circle_id)), self)
-        self.label.setStyleSheet("color : {}".format(self.color.name()))
-        self.label.move(7, 48)
-        self.label.resize(96, 15)
-        self.label.show()
-        self.label.setWordWrap(True)
-        self.label.setAlignment(Qt.AlignVCenter | Qt.AlignHCenter)
+        self.circleLabel = Label("Circle{}".format(next(circleId)), self)
+        self.circleLabel.resize((self.diameter - 2*self.thickness), (self.diameter - 2*self.thickness))
+        # self.setStyleSheet("""
+        # QLabel {
+        #     background-color: rgba(255,0,0,0.5);
+        #     color: Black;
+        #     }
+        # """)
+        # self.circleLabel.setStyleSheet("""
+        # QLabel {
+        #     background-color: rgba(0,255,0,0.5);
+        #     color: Black;
+        #     }
+        # """)
+        self.circleLabel.setAlignment(Qt.AlignCenter | Qt.AlignHCenter | Qt.AlignVCenter)
+        self.circleLabel.move(self.thickness + diameter/2, self.thickness + diameter/2)
+        self.circleLabel.show()
         self.show()
-    
+
     def paintEvent(self, event):
-        # print("ABC")
         painter = QPainter(self)
-        painter.setPen(QPen(self.color, 3, Qt.SolidLine))
-        painter.drawEllipse(5, 5, 100, 100)
+        painter.setPen(QPen(self.color, self.thickness, Qt.SolidLine))
+        painter.drawEllipse(self.thickness, self.thickness, self.diameter, self.diameter)
+        self.move(*self.cen)
         painter.end()
-        self.parent.update()
+        self.canvas.update()
 
     def mousePressEvent(self, event):
-        print(type(event))
-        print(event)
-        self.parent.statusBar().showMessage(self.label.text())
-        if self.state.selected_circle not in [None,self]:
-            key = tuple(sorted([self.state.selected_circle, self], key = id))
-            if key not in self.state.list_lines:
-                # self.state.list_lines["Line{}".format(next(line_id))] = set([self.state.selected_circle, self])
-                self.state.list_lines[key] = "Line{}".format(next(line_id))
-                self.parent.repaint()
-                self.parent.statusBar().showMessage("Line Drawn from {} to {}".format(self.state.selected_circle.label.text(), self.label.text()))
-        self.state.selected_circle = self
-        self.__mousePressPos = None
-        self.__mouseMovePos = None
-        if event.button() == Qt.LeftButton:
-            self.__mousePressPos = event.globalPos()
-            self.__mouseMovePos = event.globalPos()
+        if event.buttons() == Qt.LeftButton:
+            self.canvas.window.statusBar().showMessage(self.circleLabel.text())
+            if self.state.selectedCircle not in [None,self]:
+                key = tuple(sorted([self.state.selectedCircle, self], key = id))
+                if key not in self.state.circlesLineMap:
+                    lineLabel = Label("Line{}".format(next(lineId)), self.canvas)
+                    lineLabel.show()
+                    self.state.circlesLineMap[key] = lineLabel
+                    self.canvas.window.statusBar().showMessage("{} Drawn from {} to {}".format(lineLabel.text(), 
+                                                                self.state.selectedCircle.circleLabel.text(), self.circleLabel.text()))
+            self.state.selectedCircle = self
+            self.__mousePressPos = None
+            self.__mouseMovePos = None
+            if event.button() == Qt.LeftButton:
+                self.__mousePressPos = event.globalPos()
+                self.__mouseMovePos = event.globalPos()
+        if event.buttons() == Qt.RightButton:
+            self.close()
+            self.state.circlesSet.remove(self)
+            linesToRemove = list(filter(lambda x: self in x[0], self.state.circlesLineMap.items()))
+            for circles_set, lines in linesToRemove:
+                lines.close()
+                del self.state.circlesLineMap[circles_set]
+            del self.state.selectedCircle
+            self.state.selectedCircle = None
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton:
@@ -76,102 +125,114 @@ class circ(QLabel):
             globalPos = event.globalPos()
             diff = globalPos - self.__mouseMovePos
             newPos = self.mapFromGlobal(currPos + diff)
-            self.move(newPos)
+            self.cen = Position(newPos.x()+self.width()/2, newPos.y()+self.height()/2)
             self.__mouseMovePos = globalPos
 
-    def mouseDoubleClickEvent(self, event):
-        text, ok = QInputDialog.getText(self, 'Name Box', 'Circle Name:')   
-        if ok:
-            self.label.setText(text)
+    # def mouseMoveEvent(self, event):
+    #     if event.buttons() == Qt.LeftButton:
+    #         # currPos = self.mapToGlobal(self.pos())
+    #         globalPos = event.globalPos()
+    #         diff = globalPos - self.__mouseMovePos
+    #         diffPos = Position(diff.x(), diff.y())
+    #         self.cen = Position(self.cen.x + diffPos.x, self.cen.y + diffPos.y)
+    #         self.__mouseMovePos = globalPos
+    #         # print(self.circle.center, newPos, globalPos)
 
-    def mouseReleaseEvent(self, event):
-        if self.__mousePressPos is not None:
-            self.x = self.pos().x()
-            self.y == self.pos().y()
-            moved = event.globalPos() - self.__mousePressPos
-            if moved.manhattanLength() > 3:
-                event.ignore()
-                return
 
-    # def label(self):
-    #     label = QLabel("Hello World!!!", self)
-    #     label.move(50, 50)
-    #     label.show()
+
+class canvas(QWidget):
+    def __init__(self, window, state):
+        super(canvas, self).__init__(parent=window)
+        self.window = window
+        self.state = state
+
+    def mousePressEvent(self, event):
+        self.window.statusBar().showMessage("Select a Circle")
+        self.state.selectedCircle = None
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        for circle_set, line_label in self.state.circlesLineMap.items():
+            circle_list = list(circle_set)
+            circle1 = circle_list[0]
+            circle2 = circle_list[1]
+            line_label.move(*midpoint(circle1.center(), circle2.center()))
+            painter.drawLine(*circle1.center(), *circle2.center())
+
 
 
 class MainWindow(QMainWindow):
-
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.showMaximized()
         self.state = state()
-        self.setWindowTitle("My Awesome App")
+        self.setWindowTitle("Fossee Screening Task 3")
+        self.statusBar().setStyleSheet("""QStatusBar{background-color: white;}""")
         self.toolbar()
-        # self.label = QLabel()
-        # self.canvas = QPixmap(500, 500)
-        # self.label.setPixmap(self.canvas)
-        # self.setCentralWidget(self.label)
-        print(self.__dir__())
-
-    # def repaint(self, *args, **kwargs):
-    #     super(MainWindow, self).repaint(*args, **kwargs)
-    #     for line_label, set_circles in self.state.list_lines.items():
-    #         circle_list = list(set_circles)
-    #         circleA = circle_list[0]
-    #         circleB = circle_list[1]
-    #         print("line drawin from {} to {}".format(circleA.pos(), circleB.pos()))
+        self.canvas = canvas(self, self.state)
+        self.canvas.setGeometry(0, 0, 900, 500)
+        self.setCentralWidget(self.canvas)
+        # self.setStyleSheet("""
+        #         QMainWindow {
+        #             background-color: white;
+        #             }
+        #         """)
+        # self.scrollarea = QScrollArea()
+        # self.scrollarea.setBackgroundRole(QPalette.Dark)
+        # self.scrollarea.setWidget(self.canvas)
 
 
     def toolbar(self):
+        addTool = QAction('Add', self)
+        addTool.triggered.connect(self.addCircle)
+        addTool.setShortcut("Ctrl+A")
+        generateTool = QAction('Generate Report', self)
+        generateTool.triggered.connect(self.generatePDF)
+        generateTool.setShortcut("Ctrl+G")
+        saveTool = QAction('Save', self)
+        saveTool.triggered.connect(self.saveImage)
+        saveTool.setShortcut("Ctrl+S")
         toolbar = QToolBar("My Toolbar")
-        addtool = QAction('Add',self)
-        addtool.triggered.connect(self.add_circle)
-        toolbar.addAction(addtool)
-        toolbar.addAction(QAction('Generate',self))
-        toolbar.addAction(QAction('Save',self))
+        toolbar.addAction(addTool)
+        toolbar.addAction(generateTool)
+        toolbar.addAction(saveTool)
         self.addToolBar(toolbar)
+        
+    def addCircle(self):
+        self.state.circlesSet.add(Circle(self.canvas, self.state))
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setPen(QPen(Qt.black, 1, Qt.SolidLine))
-        for set_circles, line_label in self.state.list_lines.items():
-            circle_list = list(set_circles)
-            circleA = circle_list[0]
-            circleB = circle_list[1]
-            # labelofline = QLabel(line_label, self)
-            painter.drawText(*midpoint(circleA.pos(), circleB.pos()), line_label)
-            # labelofline.move(*midpoint(circleA.pos(), circleB.pos()))
-            # labelofline.show()
-            painter.drawLine(circleA.pos().x()+55, circleA.pos().y()+55, circleB.pos().x()+55, circleB.pos().y()+55)
-            # print("line drawin from {} to {}".format(circleA.pos(), circleB.pos()))
-
-    def mousePressEvent(self, event):
-        print("Empty")
-        self.statusBar().showMessage("")
-        self.state.selected_circle = None
-
-    def add_circle(self):
-        self.state.list_circles.add(circ(self, self.state))
+    def generatePDF(self):
+        saveFile = list(QFileDialog.getSaveFileName(self, 'Save File', '', 'PDF Files (*.pdf)'))
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=25, style='BU')
+        pdf.cell(0, 10, txt="Report", ln=1, align='C')
+        pdf.set_font("Arial", size=10)
+        for circles_set, line in self.state.circlesLineMap.items():
+            circle1 = circles_set[0].circleLabel.text()
+            circle2 = circles_set[1].circleLabel.text()
+            pdf.cell(0, 10, txt="[{}: ({}, {})]".format(line.text(), circle1, circle2), ln=1, align="C")
+        pdf.output(saveFile[0], 'F')
+    
+    def saveImage(self):
+        saveFile = list(QFileDialog.getSaveFileName(self, 'Save File', '', 'PNG Files (*.png);;JPEG Files (*.jpeg)'))
+        image = QPixmap(self.canvas.size())
+        self.canvas.render(image)
+        image.save(saveFile[0])
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete and self.state.selected_circle != None:
-            print("HAHAHAH")
-            self.state.selected_circle.close()
-            print(type(self.state.selected_circle))
-            print(self.state.selected_circle.render.__doc__)
-            print(self.state.selected_circle.repaint.__doc__)
-            self.state.list_circles.remove(self.state.selected_circle)
-            linesToRemove = list(filter(lambda x: self.state.selected_circle in x[0], self.state.list_lines.items()))
-            for circle_set, label in linesToRemove:
-                del self.state.list_lines[label]
-            del self.state.selected_circle
-            self.state.selected_circle = None
+        if event.key() == Qt.Key_Delete and self.state.selectedCircle != None:
+            self.state.selectedCircle.close()
+            self.state.circlesSet.remove(self.state.selectedCircle)
+            linesToRemove = list(filter(lambda x: self.state.selectedCircle in x[0], self.state.circlesLineMap.items()))
+            for circles_set, lines in linesToRemove:
+                lines.close()
+                del self.state.circlesLineMap[circles_set]
+            del self.state.selectedCircle
+            self.state.selectedCircle = None
 
 
 app = QApplication(sys.argv)
-
-window = MainWindow()
-# window.setStyleSheet("QMainWindow{background : 'white';}")
-window.show()
-
+mainwindow = MainWindow()
+mainwindow.show()
 app.exec_()
