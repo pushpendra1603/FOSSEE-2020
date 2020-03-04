@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QApplication, QAction, QToolBar, QFileDialog, QScrollArea
+from PyQt5.QtWidgets import QMainWindow, QApplication, QAction, QToolBar, QFileDialog, QStatusBar, QLabel, QScrollArea
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 from fpdf import FPDF
@@ -12,14 +12,20 @@ from Canvas import Canvas
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-        self.showMaximized()
         self.state = State()
         self.setWindowTitle("Fossee Screening Task 3")
-        self.statusBar().setStyleSheet("""QStatusBar{background-color: white;color: Black;}""")
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        self.status = QLabel("", self)
+        self.help = QLabel("Select: L_Click;    Delete: Space, R_Click;     Rename: Double Click;")
+        self.statusBar.addWidget(self.status)
+        self.statusBar.addWidget(self.help)
+        self.statusBar.setStyleSheet("""QStatusBar{background-color: white;color: Black;}""")
         self.toolbar()
         self.canvas = Canvas(self, self.state)
         self.canvas.setGeometry(0, 0, 900, 500)
         self.setCentralWidget(self.canvas)
+        self.showMaximized()
 
     def toolbar(self):
         addTool = QAction('Add', self)

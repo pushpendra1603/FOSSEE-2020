@@ -26,4 +26,4 @@ class Label(QLabel):
         parent = self
         while not isinstance(parent, QMainWindow):
             parent = parent.parent()
-        parent.statusBar().showMessage(msg)
+        parent.status.setText(msg)

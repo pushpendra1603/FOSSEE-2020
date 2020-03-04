@@ -52,15 +52,15 @@ class CircleWidget(Label):
     def mousePressEvent(self, event):
         self.__mouseMovePos = None
         if event.buttons() == Qt.LeftButton:
-            self.canvas.window.statusBar().showMessage(self.circle.label.text())
+            self.canvas.window.status.setText(self.circle.label.text())
             if self.state.selectedCircle not in [None, self.circle]:
                 key = tuple(sorted([self.state.selectedCircle, self.circle], key=id))
                 if key not in self.state.circlesLineMap:
                     lineLabel = Label("Line{}".format(next(lineId)), self.canvas)
                     lineLabel.show()
                     self.state.circlesLineMap[key] = lineLabel
-                    self.canvas.window.statusBar() \
-                        .showMessage("{} Drawn from {} to {}".format(lineLabel.text(),
+                    self.canvas.window.status \
+                        .setText("{} Drawn from {} to {}".format(lineLabel.text(),
                                                                      self.state.selectedCircle.label.text(),
                                                                      self.circle.label.text()))
             self.state.selectedCircle = self.circle

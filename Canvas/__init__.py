@@ -12,7 +12,7 @@ class Canvas(QWidget):
         self.state = state
 
     def mousePressEvent(self, event):
-        self.window.statusBar().showMessage("Select a CircleWidget")
+        self.window.status.setText("Select a CircleWidget")
         self.state.selectedCircle = None
 
     def paintEvent(self, event):
