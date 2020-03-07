@@ -5,6 +5,7 @@ from Point import midpoint
 from Circle import getNewPositionOfCircle
 from State import State
 
+
 class Canvas(QWidget):
     def __init__(self, window: QMainWindow, state: State):
         super(Canvas, self).__init__(parent=window)

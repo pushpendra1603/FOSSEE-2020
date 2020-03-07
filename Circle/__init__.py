@@ -19,6 +19,6 @@ def getCirclePointAtAngle(position: Point, radius: int, angle: float):
 
 
 def getNewPositionOfCircle(circle1: Circle, circle2: Circle):
-    anglebetweenTwoCircles = lineAngle(circle1.center, circle2.center)
-    return (getCirclePointAtAngle(circle1.center, circle1.radius, anglebetweenTwoCircles),
-            getCirclePointAtAngle(circle2.center, circle2.radius, math.pi + anglebetweenTwoCircles),)
+    angleBetweenTwoCircles = lineAngle(circle1.center, circle2.center)
+    return (getCirclePointAtAngle(circle1.center, circle1.radius, angleBetweenTwoCircles),
+            getCirclePointAtAngle(circle2.center, circle2.radius, math.pi + angleBetweenTwoCircles),)
