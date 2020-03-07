@@ -61,10 +61,6 @@ class CircleWidget(Label):
                     lineLabel = Label("Line{}".format(next(lineId)), self.canvas)
                     lineLabel.show()
                     self.state.circlesLineMap[key] = lineLabel
-                    self.canvas.window.status.setText("{} Drawn from {} to {}"
-                                                      .format(lineLabel.text(),
-                                                              self.state.selectedCircle.label.text(),
-                                                              self.circle.label.text()))
             self.state.selectedCircle = self.circle
             self.canvas.window.status.setText(self.state.selectedCircle.label.text())
             self.__mouseMovePos = event.globalPos()
